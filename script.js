@@ -9,6 +9,10 @@ const verticalValue = document.getElementById('vertical-value');
 const applyGridBtn = document.getElementById('apply-grid');
 const showGridCheckbox = document.getElementById('show-grid');
 
+// 控制面板元素
+const controlPanel = document.getElementById('control-panel');
+const controlToggle = document.getElementById('control-toggle');
+
 // 画布尺寸控制元素
 const canvasWidthInput = document.getElementById('canvas-width');
 const canvasHeightInput = document.getElementById('canvas-height');
@@ -27,13 +31,17 @@ const zoomInBtn = document.getElementById('zoom-in');
 const zoomOutBtn = document.getElementById('zoom-out');
 const zoomResetBtn = document.getElementById('zoom-reset');
 const zoomLevelDisplay = document.getElementById('zoom-level');
-let currentZoom = 1; // 初始缩放比例
+let currentZoom = 0.4; // 初始缩放比例改为40%
 
 // 拖拽控制
 let isDragging = false;
 let startX, startY;
 let translateX = 0;
 let translateY = 0;
+
+// 触摸控制
+let lastTouchDistance = 0;
+let isTouching = false;
 
 // 默认画布尺寸
 const defaultWidth = 1200;
@@ -44,30 +52,139 @@ const pagePadding = 60; // 固定页边距
 let hGridCount = 30;
 let vGridCount = 30;
 
+// 检测是否为移动设备
+const isMobile = window.matchMedia("(max-width: 1024px)").matches;
+
+// 计算画布居中位置
+function calculateCenterPosition() {
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const canvasWidth = parseInt(canvas.style.width || defaultWidth);
+    const canvasHeight = parseInt(canvas.style.height || defaultHeight);
+    
+    // 考虑当前缩放比例
+    const scaledCanvasWidth = canvasWidth * currentZoom;
+    const scaledCanvasHeight = canvasHeight * currentZoom;
+    
+    // 计算居中位置（考虑控制面板的空间）
+    const controlPanelWidth = isMobile ? 0 : (controlPanel.offsetWidth || 300);
+    
+    // 调整计算方法，确保真正居中
+    const x = (viewportWidth - scaledCanvasWidth - controlPanelWidth) / 2;
+    const y = (viewportHeight - scaledCanvasHeight) / 2;
+    
+    return { x, y };
+}
+
+// 初始化移动端控制
+function initMobileControls() {
+    // 控制面板切换
+    controlToggle.addEventListener('click', function() {
+        controlPanel.classList.toggle('open');
+        this.classList.toggle('active');
+    });
+    
+    // 点击画布区域关闭控制面板
+    canvasWrapper.addEventListener('click', function(e) {
+        if (controlPanel.classList.contains('open') && 
+            !e.target.closest('.control-panel') && 
+            !e.target.closest('.control-toggle')) {
+            controlPanel.classList.remove('open');
+            controlToggle.classList.remove('active');
+        }
+    });
+}
+
+// 初始化触摸事件
+function initTouchEvents() {
+    // 触摸开始
+    canvasWrapper.addEventListener('touchstart', function(e) {
+        if (e.touches.length === 1) {
+            // 单指拖动
+            handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        } else if (e.touches.length === 2) {
+            // 双指缩放
+            isTouching = true;
+            isDragging = false;
+            lastTouchDistance = getTouchDistance(e.touches);
+            e.preventDefault();
+        }
+    });
+    
+    // 触摸移动
+    canvasWrapper.addEventListener('touchmove', function(e) {
+        if (isDragging && e.touches.length === 1) {
+            // 单指拖动
+            handleDragMove(e.touches[0].clientX, e.touches[0].clientY);
+            e.preventDefault();
+        } else if (e.touches.length === 2 && isTouching) {
+            // 双指缩放
+            const distance = getTouchDistance(e.touches);
+            const delta = distance - lastTouchDistance;
+            // 调整缩放敏感度
+            const zoomDelta = delta * 0.01;
+            setZoom(currentZoom + zoomDelta);
+            lastTouchDistance = distance;
+            e.preventDefault();
+        }
+    });
+    
+    // 触摸结束
+    canvasWrapper.addEventListener('touchend', function(e) {
+        if (e.touches.length === 0) {
+            isDragging = false;
+            isTouching = false;
+        } else if (e.touches.length === 1) {
+            isTouching = false;
+            // 从双指变为单指时，重新初始化拖动
+            handleDragStart(e.touches[0].clientX, e.touches[0].clientY);
+        }
+    });
+}
+
+// 计算两个触摸点之间的距离
+function getTouchDistance(touches) {
+    const dx = touches[0].clientX - touches[1].clientX;
+    const dy = touches[0].clientY - touches[1].clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+// 处理拖动开始
+function handleDragStart(clientX, clientY) {
+    // 如果点击的是控制面板内的元素，不启动拖拽
+    const target = document.elementFromPoint(clientX, clientY);
+    if (target && (target.closest('.control-panel') || target.closest('.zoom-controls') || target.closest('.control-toggle'))) {
+        return;
+    }
+    
+    isDragging = true;
+    canvasWrapper.classList.add('grabbing');
+    startX = clientX - translateX;
+    startY = clientY - translateY;
+}
+
+// 处理拖动移动
+function handleDragMove(clientX, clientY) {
+    if (!isDragging) return;
+    
+    translateX = clientX - startX;
+    translateY = clientY - startY;
+    updateCanvasTransform();
+}
+
 // 初始化拖拽
 function initDragAndDrop() {
     // 鼠标按下事件
     canvasWrapper.addEventListener('mousedown', (e) => {
-        // 如果点击的是控制面板内的元素，不启动拖拽
-        if (e.target.closest('.control-panel') || e.target.closest('.zoom-controls')) {
-            return;
-        }
-        
-        isDragging = true;
-        canvasWrapper.classList.add('grabbing');
-        startX = e.clientX - translateX;
-        startY = e.clientY - translateY;
+        handleDragStart(e.clientX, e.clientY);
         e.preventDefault();
     });
     
     // 鼠标移动事件
     document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        
-        translateX = e.clientX - startX;
-        translateY = e.clientY - startY;
-        updateCanvasTransform();
-        e.preventDefault();
+        handleDragMove(e.clientX, e.clientY);
+        if (isDragging) e.preventDefault();
     });
     
     // 鼠标松开事件
@@ -88,6 +205,8 @@ function initDragAndDrop() {
 // 更新画布变换
 function updateCanvasTransform() {
     canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+    // 确保transform-origin设置正确
+    canvas.style.transformOrigin = 'top left';
 }
 
 // 缩放控制函数
@@ -103,11 +222,15 @@ function setZoom(zoom) {
 
 // 重置位置和缩放
 function resetViewport() {
-    translateX = 0;
-    translateY = 0;
-    currentZoom = 1;
+    currentZoom = 0.4; // 重置缩放比例为40%
+    
+    // 获取居中位置
+    const centerPos = calculateCenterPosition();
+    translateX = centerPos.x;
+    translateY = centerPos.y;
+    
     updateCanvasTransform();
-    zoomLevelDisplay.textContent = '100%';
+    zoomLevelDisplay.textContent = '40%';
 }
 
 // 缩放按钮事件
@@ -327,16 +450,52 @@ resetSizeBtn.addEventListener('click', resetCanvasSize);
 
 // 页面加载时初始化
 window.addEventListener('load', function() {
+    // 设置初始画布尺寸
+    canvas.style.width = defaultWidth + 'px';
+    canvas.style.height = defaultHeight + 'px';
+    
+    // 先设置transform-origin
+    canvas.style.transformOrigin = 'top left';
+    
     // 初始化拖拽功能
     initDragAndDrop();
+    
+    // 初始化移动端控制
+    initMobileControls();
+    
+    // 初始化触摸事件
+    initTouchEvents();
     
     // 初始化文本编辑功能
     initTextEditing();
     
-    // 等待DOM完全加载并计算尺寸
+    // 如果是移动设备，自动调整初始缩放以适应屏幕
+    if (isMobile) {
+        const initialScale = Math.min(
+            window.innerWidth / (defaultWidth + 20),
+            window.innerHeight / (defaultHeight + 20)
+        );
+        setZoom(initialScale * 0.9); // 缩小一点，确保有边距
+    } else {
+        // 非移动设备应用40%的初始缩放
+        setZoom(0.4);
+        zoomLevelDisplay.textContent = '40%';
+    }
+    
+    // 等待DOM完全加载并计算尺寸和位置
     setTimeout(() => {
+        // 先生成网格
         generateGrid(hGridCount, vGridCount);
-    }, 100);
+        
+        // 延迟应用居中位置，确保所有元素已渲染
+        setTimeout(() => {
+            // 计算并应用居中位置
+            const centerPos = calculateCenterPosition();
+            translateX = centerPos.x;
+            translateY = centerPos.y;
+            updateCanvasTransform();
+        }, 200);
+    }, 200);
 });
 
 // 窗口大小改变时重新生成网格
@@ -362,6 +521,12 @@ function initTextEditing() {
             const editor = document.getElementById('edit-' + field);
             
             if (editor) {
+                // 在移动设备上，打开控制面板
+                if (isMobile && !controlPanel.classList.contains('open')) {
+                    controlPanel.classList.add('open');
+                    controlToggle.classList.add('active');
+                }
+                
                 // 滚动到编辑区域
                 editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 
