@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>小红书议程</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            background-color: #f8f8f8;
+            font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+        
+        .main-container {
+            display: flex;
+            width: 100%;
+            padding: 20px;
+            justify-content: center;
+        }
+        
+        /* 控制面板样式 */
+        .control-panel {
+            width: 300px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.2);
+            height: fit-content;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+            max-height: 90vh;
+            overflow-y: auto;
+            opacity: 0.9;
+            transition: opacity 0.3s;
+        }
+        
+        .control-panel:hover {
+            opacity: 1;
+        }
+        
+        .control-panel h2 {
+            margin-top: 0;
+            color: #333;
+            font-size: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .control-group {
+            margin-bottom: 20px;
+        }
+        
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        
+        .control-group input[type="range"] {
+            width: 100%;
+            margin-bottom: 8px;
+        }
+        
+        .control-group input[type="number"] {
+            width: 80px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .control-group button {
+            padding: 10px 15px;
+            background-color: #ff2e63;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+        }
+        
+        .control-group button:hover {
+            background-color: #e01b51;
+        }
+        
+        .gridlines-toggle {
+            display: flex;
+            align-items: center;
+            margin-top: 20px;
+        }
+        
+        .gridlines-toggle input {
+            margin-right: 10px;
+        }
+        
+        .control-panel hr {
+            margin: 25px 0;
+            border: none;
+            border-top: 1px solid #eee;
+        }
+        
+        .size-inputs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .size-input-group {
+            flex: 1;
+        }
+        
+        .size-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 14px;
+        }
+        
+        /* 文本编辑控制 */
+        .text-editor-group {
+            margin-bottom: 15px;
+        }
+        
+        .text-editor-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #555;
+            font-weight: bold;
+        }
+        
+        .text-editor-group textarea {
+            width: 100%;
+            min-height: 60px;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-family: inherit;
+            font-size: 14px;
+            resize: vertical;
+        }
+        
+        .edit-event {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .edit-event h3 {
+            margin-top: 0;
+            margin-bottom: 10px;
+            font-size: 16px;
+            color: #ff2e63;
+        }
+        
+        .editable {
+            border: 1px dashed transparent;
+            padding: 2px;
+            transition: background-color 0.2s, border-color 0.2s;
+        }
+        
+        .editable:hover {
+            background-color: rgba(255, 46, 99, 0.05);
+            border-color: #ff2e63;
+            cursor: pointer;
+        }
+        
+        /* 画布样式 */
+        .canvas-wrapper {
+            display: flex;
+            justify-content: center;
+            overflow: hidden;
+            position: relative;
+            margin: 0 auto;
+            cursor: grab; /* 默认显示抓取光标 */
+            width: 100%;
+            height: calc(100vh - 40px);
+        }
+        
+        .canvas-wrapper.grabbing {
+            cursor: grabbing; /* 拖动时显示抓取中光标 */
+        }
+        
+        .zoom-controls {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            background-color: white;
+            border-radius: 20px;
+            padding: 5px 15px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            z-index: 90;
+        }
+        
+        .zoom-controls button {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px 10px;
+        }
+        
+        .zoom-controls span {
+            display: inline-block;
+            padding: 5px 10px;
+            min-width: 60px;
+            text-align: center;
+        }
+        
+        .canvas {
+            width: 1200px;
+            height: 1600px;
+            background-color: white;
+            position: relative;
+            box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            padding: 60px; /* 固定60px页边距 */
+            box-sizing: border-box;
+            transform-origin: center center;
+            transition: transform 0.1s ease;
+        }
+        
+        .content-wrapper {
+            width: 100%;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        
+        /* 网格系统 */
+        .grid-overlay {
+            position: absolute;
+            top: 60px; /* 页边距 */
+            left: 60px; /* 页边距 */
+            right: 60px; /* 页边距 */
+            bottom: 60px; /* 页边距 */
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.2;
+        }
+        
+        .grid-line {
+            position: absolute;
+            background-color: #aaa;
+        }
+        
+        .h-line {
+            width: 100%;
+            height: 1px;
+        }
+        
+        .v-line {
+            height: 100%;
+            width: 1px;
+        }
+        
+        /* 文字和图形高度对齐网格 */
+        :root {
+            --grid-cell-height: 50px; /* 固定网格单元格高度 */
+            --grid-cell-width: 50px; /* 固定网格单元格宽度 */
+            --page-padding: 60px; /* 固定页边距 */
+            --circle-size: calc(var(--grid-cell-height) * 2); /* 使用高度作为基准，确保圆形 */
+        }
+        
+        /* 原有样式 */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--grid-cell-height);
+            height: auto;
+            min-height: calc(var(--grid-cell-height) * 2);
+        }
+        
+        .logo {
+            font-size: var(--grid-cell-height);
+            font-weight: 800;
+            display: flex;
+            align-items: center;
+            line-height: var(--grid-cell-height);
+            height: auto;
+            min-height: var(--grid-cell-height);
+        }
+        
+        .logo-cn {
+            margin-right: calc(var(--grid-cell-width) * 1);
+            height: auto;
+            min-height: var(--grid-cell-height);
+            line-height: var(--grid-cell-height);
+        }
+        
+        .logo-en {
+            font-weight: 400;
+            color: #333;
+            height: auto;
+            min-height: var(--grid-cell-height);
+            line-height: var(--grid-cell-height);
+        }
+        
+        .red-circle {
+            width: var(--circle-size);
+            height: var(--circle-size);
+            background-color: #ff2e63;
+            border-radius: 50%;
+            box-shadow: 0 0 0 calc(var(--circle-size) * 0.2) rgba(255, 46, 99, 0.2);
+            flex-shrink: 0;
+        }
+        
+        .timeline {
+            margin-top: calc(var(--grid-cell-height) * 2);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .event {
+            display: flex;
+            margin-bottom: var(--grid-cell-height);
+            position: relative;
+            min-height: var(--grid-cell-height);
+            height: auto;
+        }
+        
+        .time {
+            width: calc(var(--grid-cell-width) * 4);
+            font-size: var(--grid-cell-height);
+            font-weight: bold;
+            color: #333;
+            padding-top: 0;
+            line-height: var(--grid-cell-height);
+            height: auto;
+            min-height: var(--grid-cell-height);
+            flex-shrink: 0;
+        }
+        
+        .content {
+            flex: 1;
+            background-color: #f5f5f5;
+            border-radius: calc(var(--grid-cell-height) * 0.8);
+            padding: var(--grid-cell-height) calc(var(--grid-cell-width) * 1.5);
+            position: relative;
+            height: auto;
+            min-height: var(--grid-cell-height);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .title {
+            font-size: var(--grid-cell-height);
+            margin-bottom: 0;
+            line-height: var(--grid-cell-height);
+            height: auto;
+            min-height: var(--grid-cell-height);
+            font-weight: bold;
+            display: inline-block;
+            vertical-align: top;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .title br + span {
+            display: inline-block;
+            line-height: var(--grid-cell-height);
+            height: auto;
+            min-height: var(--grid-cell-height);
+        }
+        
+        .speakers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--grid-cell-height);
+            margin-top: var(--grid-cell-height);
+            width: 100%;
+        }
+        
+        .speaker {
+            display: flex;
+            flex-direction: column;
+            margin-top: 0;
+            min-width: 150px;
+        }
+        
+        .speaker-name {
+            font-size: calc(var(--grid-cell-height) * 0.8);
+            font-weight: bold;
+            color: #333;
+            line-height: var(--grid-cell-height);
+            height: auto;
+            min-height: var(--grid-cell-height);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .speaker-title {
+            font-size: calc(var(--grid-cell-height) * 0.6);
+            color: #999;
+            font-weight: normal;
+            margin-top: 0;
+            line-height: var(--grid-cell-height);
+            height: auto;
+            min-height: var(--grid-cell-height);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .divider {
+            width: 100%;
+            height: calc(var(--grid-cell-height) * 0.15);
+            background-color: #ff2e63;
+            margin: var(--grid-cell-height) 0;
+            position: relative;
+            left: 0;
+            flex-shrink: 0;
+        }
+        
+        .tag {
+            display: inline-block;
+            font-size: calc(var(--grid-cell-height) * 0.5);
+            color: white;
+            background-color: #ff2e63;
+            padding: calc(var(--grid-cell-height) * 0.1) calc(var(--grid-cell-width) * 0.3);
+            border-radius: calc(var(--grid-cell-height) * 0.3);
+            margin-left: calc(var(--grid-cell-width) * 0.3);
+            vertical-align: middle;
+            line-height: calc(var(--grid-cell-height) * 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="main-container">
+        <!-- 画布容器 -->
+        <div class="canvas-wrapper">
+            <div class="canvas">
+                <!-- 网格覆盖层 -->
+                <div class="grid-overlay" id="grid-overlay"></div>
+                
+                <div class="content-wrapper">
+                    <div class="header">
+                        <div class="logo">
+                            <span class="logo-cn editable" data-field="logo-cn">议程</span>
+                            <span class="logo-en editable" data-field="logo-en">agenda</span>
+                        </div>
+                        <div class="red-circle"></div>
+                    </div>
+                    
+                    <div class="timeline">
+                        <div class="event">
+                            <div class="time editable" data-field="time-1">14:00</div>
+                            <div class="content">
+                                <div class="title editable" data-field="title-1">开场视频《New Beginning》</div>
+                            </div>
+                        </div>
+                        
+                        <div class="divider"></div>
+                        
+                        <div class="event">
+                            <div class="time editable" data-field="time-2">14:05</div>
+                            <div class="content">
+                                <div class="title editable" data-field="title-2">
+                                    直播开启新职业，
+                                    <br>在小红书斜杠，斜杠，再斜杠
+                                    <span class="tag">对谈</span>
+                                </div>
+                                <div class="speakers">
+                                    <div class="speaker">
+                                        <div class="speaker-name editable" data-field="speaker-2-1-name">柯南</div>
+                                        <div class="speaker-title editable" data-field="speaker-2-1-title">小红书COO</div>
+                                    </div>
+                                    <div class="speaker">
+                                        <div class="speaker-name editable" data-field="speaker-2-2-name">杨天真</div>
+                                        <div class="speaker-title editable" data-field="speaker-2-2-title">小红书直播创作者</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="divider"></div>
+                        
+                        <div class="event">
+                            <div class="time editable" data-field="time-3">15:00</div>
+                            <div class="content">
+                                <div class="title editable" data-field="title-3">全网创作者，来小红书开启新职业</div>
+                                <div class="speakers">
+                                    <div class="speaker">
+                                        <div class="speaker-name editable" data-field="speaker-3-1-name">丝盖</div>
+                                        <div class="speaker-title editable" data-field="speaker-3-1-title">小红书电商 买手运营负责人</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="divider"></div>
+                        
+                        <div class="event">
+                            <div class="time editable" data-field="time-4">15:30</div>
+                            <div class="content">
+                                <div class="title editable" data-field="title-4">全链路产品升级，助力买手成长跃升</div>
+                                <div class="speakers">
+                                    <div class="speaker">
+                                        <div class="speaker-name editable" data-field="speaker-4-1-name">法拉</div>
+                                        <div class="speaker-title editable" data-field="speaker-4-1-title">小红书电商 买手产品负责人</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="zoom-controls">
+                <button id="zoom-out">-</button>
+                <span id="zoom-level">100%</span>
+                <button id="zoom-in">+</button>
+                <button id="zoom-reset">重置</button>
+            </div>
+        </div>
+        
+        <!-- 控制面板 -->
+        <div class="control-panel">
+            <h2>网格控制</h2>
+            
+            <div class="control-group">
+                <label for="horizontal-slider">横向网格数量: <span id="horizontal-value">30</span></label>
+                <input type="range" id="horizontal-slider" min="5" max="100" value="30">
+                <input type="number" id="horizontal-input" min="5" max="100" value="30">
+            </div>
+            
+            <div class="control-group">
+                <label for="vertical-slider">纵向网格数量: <span id="vertical-value">30</span></label>
+                <input type="range" id="vertical-slider" min="5" max="100" value="30">
+                <input type="number" id="vertical-input" min="5" max="100" value="30">
+            </div>
+            
+            <div class="control-group">
+                <button id="apply-grid">应用网格</button>
+            </div>
+            
+            <div class="gridlines-toggle">
+                <input type="checkbox" id="show-grid" checked>
+                <label for="show-grid">显示网格线</label>
+            </div>
+            
+            <hr>
+            
+            <h2>画布尺寸</h2>
+            
+            <div class="size-inputs">
+                <div class="size-input-group">
+                    <label for="canvas-width">宽度 (px): <span id="width-value">1200</span></label>
+                    <input type="range" id="canvas-width-slider" min="600" max="3000" value="1200" step="10">
+                    <input type="number" id="canvas-width" min="600" max="3000" value="1200">
+                </div>
+                <div class="size-input-group">
+                    <label for="canvas-height">高度 (px): <span id="height-value">1600</span></label>
+                    <input type="range" id="canvas-height-slider" min="800" max="4000" value="1600" step="10">
+                    <input type="number" id="canvas-height" min="800" max="4000" value="1600">
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <button id="apply-size">应用尺寸</button>
+            </div>
+            
+            <div class="control-group">
+                <button id="reset-size">重置尺寸</button>
+            </div>
+            
+            <hr>
+            
+            <h2>文本编辑</h2>
+            <p style="color: #666; font-size: 14px; margin-bottom: 15px;">点击议程上的文本可直接编辑</p>
+            
+            <div id="text-editor-container">
+                <div class="text-editor-group">
+                    <label>标题:</label>
+                    <div class="edit-event">
+                        <div class="text-editor-group">
+                            <label>中文:</label>
+                            <textarea id="edit-logo-cn">议程</textarea>
+                        </div>
+                        <div class="text-editor-group">
+                            <label>英文:</label>
+                            <textarea id="edit-logo-en">agenda</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-editor-group">
+                    <label>事件1:</label>
+                    <div class="edit-event">
+                        <div class="text-editor-group">
+                            <label>时间:</label>
+                            <textarea id="edit-time-1">14:00</textarea>
+                        </div>
+                        <div class="text-editor-group">
+                            <label>标题:</label>
+                            <textarea id="edit-title-1">开场视频《New Beginning》</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-editor-group">
+                    <label>事件2:</label>
+                    <div class="edit-event">
+                        <div class="text-editor-group">
+                            <label>时间:</label>
+                            <textarea id="edit-time-2">14:05</textarea>
+                        </div>
+                        <div class="text-editor-group">
+                            <label>标题:</label>
+                            <textarea id="edit-title-2">直播开启新职业，
+在小红书斜杠，斜杠，再斜杠</textarea>
+                        </div>
+                        <div class="text-editor-group">
+                            <label>演讲者1:</label>
+                            <textarea id="edit-speaker-2-1-name">柯南</textarea>
+                            <textarea id="edit-speaker-2-1-title">小红书COO</textarea>
+                        </div>
+                        <div class="text-editor-group">
+                            <label>演讲者2:</label>
+                            <textarea id="edit-speaker-2-2-name">杨天真</textarea>
+                            <textarea id="edit-speaker-2-2-title">小红书直播创作者</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-editor-group">
+                    <label>事件3:</label>
+                    <div class="edit-event">
+                        <div class="text-editor-group">
+                            <label>时间:</label>
+                            <textarea id="edit-time-3">15:00</textarea>
+                        </div>
+                        <div class="text-editor-group">
+                            <label>标题:</label>
+                            <textarea id="edit-title-3">全网创作者，来小红书开启新职业</textarea>
+                        </div>
+                        <div class="text-editor-group">
+                            <label>演讲者:</label>
+                            <textarea id="edit-speaker-3-1-name">丝盖</textarea>
+                            <textarea id="edit-speaker-3-1-title">小红书电商 买手运营负责人</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-editor-group">
+                    <label>事件4:</label>
+                    <div class="edit-event">
+                        <div class="text-editor-group">
+                            <label>时间:</label>
+                            <textarea id="edit-time-4">15:30</textarea>
+                        </div>
+                        <div class="text-editor-group">
+                            <label>标题:</label>
+                            <textarea id="edit-title-4">全链路产品升级，助力买手成长跃升</textarea>
+                        </div>
+                        <div class="text-editor-group">
+                            <label>演讲者:</label>
+                            <textarea id="edit-speaker-4-1-name">法拉</textarea>
+                            <textarea id="edit-speaker-4-1-title">小红书电商 买手产品负责人</textarea>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="control-group">
+                    <button id="apply-text">应用文本更改</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取DOM元素
+        const gridOverlay = document.getElementById('grid-overlay');
+        const horizontalSlider = document.getElementById('horizontal-slider');
+        const verticalSlider = document.getElementById('vertical-slider');
+        const horizontalInput = document.getElementById('horizontal-input');
+        const verticalInput = document.getElementById('vertical-input');
+        const horizontalValue = document.getElementById('horizontal-value');
+        const verticalValue = document.getElementById('vertical-value');
+        const applyGridBtn = document.getElementById('apply-grid');
+        const showGridCheckbox = document.getElementById('show-grid');
+        
+        // 画布尺寸控制元素
+        const canvasWidthInput = document.getElementById('canvas-width');
+        const canvasHeightInput = document.getElementById('canvas-height');
+        const canvasWidthSlider = document.getElementById('canvas-width-slider');
+        const canvasHeightSlider = document.getElementById('canvas-height-slider');
+        const widthValue = document.getElementById('width-value');
+        const heightValue = document.getElementById('height-value');
+        const applySizeBtn = document.getElementById('apply-size');
+        const resetSizeBtn = document.getElementById('reset-size');
+        const canvas = document.querySelector('.canvas');
+        const contentWrapper = document.querySelector('.content-wrapper');
+        const canvasWrapper = document.querySelector('.canvas-wrapper');
+        
+        // 缩放控制
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const zoomResetBtn = document.getElementById('zoom-reset');
+        const zoomLevelDisplay = document.getElementById('zoom-level');
+        let currentZoom = 1; // 初始缩放比例
+        
+        // 拖拽控制
+        let isDragging = false;
+        let startX, startY;
+        let translateX = 0;
+        let translateY = 0;
+        
+        // 默认画布尺寸
+        const defaultWidth = 1200;
+        const defaultHeight = 1600;
+        const pagePadding = 60; // 固定页边距
+        
+        // 初始网格设置
+        let hGridCount = 30;
+        let vGridCount = 30;
+        
+        // 初始化拖拽
+        function initDragAndDrop() {
+            // 鼠标按下事件
+            canvasWrapper.addEventListener('mousedown', (e) => {
+                // 如果点击的是控制面板内的元素，不启动拖拽
+                if (e.target.closest('.control-panel') || e.target.closest('.zoom-controls')) {
+                    return;
+                }
+                
+                isDragging = true;
+                canvasWrapper.classList.add('grabbing');
+                startX = e.clientX - translateX;
+                startY = e.clientY - translateY;
+                e.preventDefault();
+            });
+            
+            // 鼠标移动事件
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                
+                translateX = e.clientX - startX;
+                translateY = e.clientY - startY;
+                updateCanvasTransform();
+                e.preventDefault();
+            });
+            
+            // 鼠标松开事件
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+                canvasWrapper.classList.remove('grabbing');
+            });
+            
+            // 鼠标离开窗口事件
+            document.addEventListener('mouseleave', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    canvasWrapper.classList.remove('grabbing');
+                }
+            });
+        }
+        
+        // 更新画布变换
+        function updateCanvasTransform() {
+            canvas.style.transform = `translate(${translateX}px, ${translateY}px) scale(${currentZoom})`;
+        }
+        
+        // 缩放控制函数
+        function setZoom(zoom) {
+            // 限制缩放范围
+            if (zoom < 0.2) zoom = 0.2;
+            if (zoom > 3) zoom = 3;
+            
+            currentZoom = zoom;
+            updateCanvasTransform();
+            zoomLevelDisplay.textContent = Math.round(zoom * 100) + '%';
+        }
+        
+        // 重置位置和缩放
+        function resetViewport() {
+            translateX = 0;
+            translateY = 0;
+            currentZoom = 1;
+            updateCanvasTransform();
+            zoomLevelDisplay.textContent = '100%';
+        }
+        
+        // 缩放按钮事件
+        zoomInBtn.addEventListener('click', () => {
+            setZoom(currentZoom + 0.1);
+        });
+        
+        zoomOutBtn.addEventListener('click', () => {
+            setZoom(currentZoom - 0.1);
+        });
+        
+        zoomResetBtn.addEventListener('click', () => {
+            resetViewport();
+        });
+        
+        // 鼠标滚轮缩放
+        canvasWrapper.addEventListener('wheel', (e) => {
+            // 阻止默认滚动行为
+            e.preventDefault();
+            
+            // 根据滚轮方向调整缩放
+            const delta = -Math.sign(e.deltaY) * 0.1;
+            setZoom(currentZoom + delta);
+        });
+        
+        // 更新CSS变量
+        function updateCSSVariables() {
+            // 网格单元格大小保持不变，仅更新其他变量
+            document.documentElement.style.setProperty('--page-padding', `${pagePadding}px`);
+            
+            // 强制回流，确保尺寸计算准确
+            void canvas.offsetHeight;
+        }
+        
+        // 实时应用画布尺寸（用于滑块拖动）
+        function applyCanvasSizeImmediate() {
+            const width = parseInt(canvasWidthSlider.value);
+            const height = parseInt(canvasHeightSlider.value);
+            
+            if (width >= 600 && height >= 800) {
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+                
+                // 等待DOM更新后再生成网格
+                clearTimeout(window.resizeTimer);
+                window.resizeTimer = setTimeout(() => {
+                    generateGrid(hGridCount, vGridCount);
+                }, 100);
+            }
+        }
+        
+        // 应用画布尺寸（通过按钮点击）
+        function applyCanvasSize() {
+            const width = parseInt(canvasWidthInput.value);
+            const height = parseInt(canvasHeightInput.value);
+            
+            if (width < 600 || height < 800) {
+                alert('画布尺寸过小，请输入更大的值');
+                return;
+            }
+            
+            canvas.style.width = width + 'px';
+            canvas.style.height = height + 'px';
+            
+            // 等待DOM更新后再生成网格
+            setTimeout(() => {
+                generateGrid(hGridCount, vGridCount);
+            }, 50);
+        }
+        
+        // 重置画布尺寸
+        function resetCanvasSize() {
+            canvasWidthInput.value = defaultWidth;
+            canvasHeightInput.value = defaultHeight;
+            canvasWidthSlider.value = defaultWidth;
+            canvasHeightSlider.value = defaultHeight;
+            widthValue.textContent = defaultWidth;
+            heightValue.textContent = defaultHeight;
+            
+            canvas.style.width = defaultWidth + 'px';
+            canvas.style.height = defaultHeight + 'px';
+            
+            // 重置缩放和位置
+            resetViewport();
+            
+            // 等待DOM更新后再生成网格
+            setTimeout(() => {
+                generateGrid(hGridCount, vGridCount);
+            }, 50);
+        }
+        
+        // 生成网格线
+        function generateGrid(h, v) {
+            // 清空网格
+            gridOverlay.innerHTML = '';
+            
+            // 获取固定的网格单元格尺寸
+            const cellWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-cell-width'));
+            const cellHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-cell-height'));
+            
+            // 计算网格尺寸（版心内容区域）
+            const gridWidth = gridOverlay.offsetWidth;
+            const gridHeight = gridOverlay.offsetHeight;
+            
+            // 计算需要的网格线数量
+            const hLines = Math.ceil(gridHeight / cellHeight) + 1;
+            const vLines = Math.ceil(gridWidth / cellWidth) + 1;
+            
+            // 更新输入框和滑块的值（但不触发事件）
+            horizontalInput.value = vLines - 1;
+            horizontalSlider.value = vLines - 1;
+            horizontalValue.textContent = vLines - 1;
+            
+            verticalInput.value = hLines - 1;
+            verticalSlider.value = hLines - 1;
+            verticalValue.textContent = hLines - 1;
+            
+            // 存储当前网格数量
+            hGridCount = vLines - 1;
+            vGridCount = hLines - 1;
+            
+            // 生成横向线
+            for (let i = 0; i <= hLines; i++) {
+                const hLine = document.createElement('div');
+                hLine.className = 'grid-line h-line';
+                hLine.style.top = (i * cellHeight) + 'px';
+                gridOverlay.appendChild(hLine);
+            }
+            
+            // 生成纵向线
+            for (let i = 0; i <= vLines; i++) {
+                const vLine = document.createElement('div');
+                vLine.className = 'grid-line v-line';
+                vLine.style.left = (i * cellWidth) + 'px';
+                gridOverlay.appendChild(vLine);
+            }
+            
+            // 更新CSS变量
+            updateCSSVariables();
+        }
+        
+        // 同步滑块和输入框
+        horizontalSlider.addEventListener('input', function() {
+            horizontalInput.value = this.value;
+            horizontalValue.textContent = this.value;
+        });
+        
+        verticalSlider.addEventListener('input', function() {
+            verticalInput.value = this.value;
+            verticalValue.textContent = this.value;
+        });
+        
+        horizontalInput.addEventListener('input', function() {
+            horizontalSlider.value = this.value;
+            horizontalValue.textContent = this.value;
+        });
+        
+        verticalInput.addEventListener('input', function() {
+            verticalSlider.value = this.value;
+            verticalValue.textContent = this.value;
+        });
+        
+        // 同步滑块和输入框 - 画布尺寸
+        canvasWidthSlider.addEventListener('input', function() {
+            canvasWidthInput.value = this.value;
+            widthValue.textContent = this.value;
+            // 实时应用尺寸变化
+            applyCanvasSizeImmediate();
+        });
+        
+        canvasHeightSlider.addEventListener('input', function() {
+            canvasHeightInput.value = this.value;
+            heightValue.textContent = this.value;
+            // 实时应用尺寸变化
+            applyCanvasSizeImmediate();
+        });
+        
+        canvasWidthInput.addEventListener('input', function() {
+            canvasWidthSlider.value = this.value;
+            widthValue.textContent = this.value;
+        });
+        
+        canvasHeightInput.addEventListener('input', function() {
+            canvasHeightSlider.value = this.value;
+            heightValue.textContent = this.value;
+        });
+        
+        // 应用网格按钮
+        applyGridBtn.addEventListener('click', function() {
+            const cellWidth = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-cell-width'));
+            const cellHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--grid-cell-height'));
+            
+            // 获取用户输入的网格数量
+            hGridCount = parseInt(horizontalInput.value);
+            vGridCount = parseInt(verticalInput.value);
+            
+            // 根据输入的网格数量更新CSS变量
+            const newCellWidth = cellWidth;
+            const newCellHeight = cellHeight;
+            
+            // 应用新的网格单元格大小
+            document.documentElement.style.setProperty('--grid-cell-width', `${newCellWidth}px`);
+            document.documentElement.style.setProperty('--grid-cell-height', `${newCellHeight}px`);
+            
+            // 重新生成网格
+            generateGrid(hGridCount, vGridCount);
+        });
+        
+        // 显示/隐藏网格
+        showGridCheckbox.addEventListener('change', function() {
+            gridOverlay.style.display = this.checked ? 'block' : 'none';
+        });
+        
+        // 尺寸控制按钮事件监听
+        applySizeBtn.addEventListener('click', applyCanvasSize);
+        resetSizeBtn.addEventListener('click', resetCanvasSize);
+        
+        // 页面加载时初始化
+        window.addEventListener('load', function() {
+            // 初始化拖拽功能
+            initDragAndDrop();
+            
+            // 初始化文本编辑功能
+            initTextEditing();
+            
+            // 等待DOM完全加载并计算尺寸
+            setTimeout(() => {
+                generateGrid(hGridCount, vGridCount);
+            }, 100);
+        });
+        
+        // 窗口大小改变时重新生成网格
+        window.addEventListener('resize', function() {
+            clearTimeout(window.resizeTimer);
+            window.resizeTimer = setTimeout(() => {
+                generateGrid(hGridCount, vGridCount);
+            }, 100);
+        });
+        
+        // 初始化文本编辑功能
+        function initTextEditing() {
+            // 获取所有可编辑元素
+            const editables = document.querySelectorAll('.editable');
+            
+            // 获取应用按钮
+            const applyTextBtn = document.getElementById('apply-text');
+            
+            // 为所有可编辑元素添加点击事件
+            editables.forEach(el => {
+                el.addEventListener('click', function() {
+                    const field = this.getAttribute('data-field');
+                    const editor = document.getElementById('edit-' + field);
+                    
+                    if (editor) {
+                        // 滚动到编辑区域
+                        editor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        
+                        // 突出显示编辑区域
+                        editor.style.backgroundColor = '#fff9f9';
+                        editor.style.border = '1px solid #ff2e63';
+                        
+                        setTimeout(() => {
+                            editor.style.backgroundColor = '';
+                            editor.style.border = '1px solid #ddd';
+                        }, 1500);
+                        
+                        editor.focus();
+                    }
+                });
+            });
+            
+            // 应用按钮点击事件
+            applyTextBtn.addEventListener('click', applyTextChanges);
+            
+            // 为所有编辑框添加实时更新
+            const editors = document.querySelectorAll('[id^="edit-"]');
+            editors.forEach(editor => {
+                editor.addEventListener('input', function() {
+                    updateSingleField(this);
+                });
+            });
+            
+            // 初始化编辑器内容
+            syncEditorsFromContent();
+        }
+        
+        // 从画布内容同步到编辑器
+        function syncEditorsFromContent() {
+            const editables = document.querySelectorAll('.editable');
+            
+            editables.forEach(el => {
+                const field = el.getAttribute('data-field');
+                const editor = document.getElementById('edit-' + field);
+                
+                if (editor) {
+                    editor.value = el.innerHTML.replace(/<br>/g, '\n').replace(/<span class="tag">([^<]+)<\/span>/g, '$1');
+                }
+            });
+        }
+        
+        // 更新单个字段
+        function updateSingleField(editor) {
+            const fieldId = editor.id.replace('edit-', '');
+            const targetElement = document.querySelector(`.editable[data-field="${fieldId}"]`);
+            
+            if (targetElement) {
+                let content = editor.value;
+                
+                // 处理特殊情况
+                if (fieldId === 'title-2') {
+                    // 保留"对谈"标签
+                    content = content.replace(/对谈$/, '<span class="tag">对谈</span>');
+                }
+                
+                // 将换行符转换为<br>
+                content = content.replace(/\n/g, '<br>');
+                
+                targetElement.innerHTML = content;
+            }
+        }
+        
+        // 应用文本更改
+        function applyTextChanges() {
+            const editors = document.querySelectorAll('[id^="edit-"]');
+            
+            editors.forEach(editor => {
+                updateSingleField(editor);
+            });
+        }
+    </script>
+</body>
+</html> 
